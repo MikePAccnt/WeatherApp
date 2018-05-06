@@ -1,6 +1,9 @@
 package com.example.mikep.weatherapp;
 
+import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.Fragment;
+import android.content.DialogInterface;
 import android.icu.text.SimpleDateFormat;
 import android.icu.util.Calendar;
 import android.icu.util.TimeZone;
@@ -8,9 +11,11 @@ import android.os.Bundle;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.support.annotation.Nullable;
+import android.support.design.widget.TextInputEditText;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import org.json.JSONObject;
@@ -20,13 +25,16 @@ import java.util.Date;
 
 public class WeatherPanel extends Fragment {
 
+    private static int PANELNUMBER = 0;
     private final String APIKEY = "&APPID=97850b9e2e9e9ad84ac07ab9dcf61648";
     private RestfulClient client;
     private HandlerThread connectionHandlerThread;
     private Looper looper;
     private WeatherInfoParser weatherInfo;
-
+    private int panelNumber;
     private View thisView;
+    private LinearLayout newPanelLayout;
+    private AlertDialog.Builder changeCityBuilder;
 
     TextView cityName;
     TextView weatherDescription;
@@ -42,12 +50,14 @@ public class WeatherPanel extends Fragment {
     @Nullable
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, Bundle savedInstanceState) {
+        panelNumber = PANELNUMBER++;
         thisView = inflater.inflate(R.layout.weather_panel, container, false);
-
+        thisView.setOnClickListener(new PanelClicked());
         connectionHandlerThread = new HandlerThread("WeatherAPI");
         connectionHandlerThread.start();
         initViewElements();
         initRestfulClient();
+        initChangeCityBuilder();
         try {
             client.Get(client.getBaseAddress() + "q=Obetz" + APIKEY);
         } catch (MalformedURLException e) {
@@ -56,6 +66,8 @@ public class WeatherPanel extends Fragment {
 
         return thisView;
     }
+
+
 
     private void initViewElements(){
         cityName = thisView.findViewById(R.id.cityName);
@@ -74,6 +86,34 @@ public class WeatherPanel extends Fragment {
                 infoTime.setText(dateFromUTCTime(weatherInfo.getTime()));
             }
         };
+    }
+
+    private void initChangeCityBuilder(){
+        Activity activity = getActivity();
+        View v = activity.getLayoutInflater().inflate(R.layout.new_city, null);
+
+        changeCityBuilder = new AlertDialog.Builder(getContext());
+        changeCityBuilder.setView(v);
+        TextInputEditText newCity = v.findViewById(R.id.cityInput);
+        changeCityBuilder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                String city = newCity.getText().toString().trim();
+                try {
+                    client.Get(client.getBaseAddress() + "q=" + city + APIKEY);
+                    ((ViewGroup) v.getParent()).removeView(v);
+                } catch (MalformedURLException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        changeCityBuilder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                ((ViewGroup) v.getParent()).removeView(v);
+                dialog.dismiss();
+            }
+        });
     }
 
     private double kelvinToFahrenheit(double kelvinTemp){
@@ -97,5 +137,13 @@ public class WeatherPanel extends Fragment {
 
         return dateFormat.format(currentDate);
 
+    }
+
+    private class PanelClicked implements View.OnClickListener {
+
+        @Override
+        public void onClick(View v) {
+            changeCityBuilder.show();
+        }
     }
 }
