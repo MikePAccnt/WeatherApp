@@ -1,9 +1,10 @@
 package com.example.mikep.weatherapp;
 
+import android.app.Activity;
 import android.content.Context;
 import android.os.Build;
 import android.os.Handler;
-import android.os.HandlerThread;
+import android.os.Looper;
 import android.os.Message;
 import android.support.annotation.RequiresApi;
 import android.util.Log;
@@ -21,37 +22,30 @@ import java.net.MalformedURLException;
 import java.net.URL;
 
 
-public class RestfulClient {
+public abstract class RestfulClient {
 
-    public static int GET = 6700;
-    public static int POST = 6701;
-    public static int DELETE = 6702;
+    private static int GET = 6700;
+    private static int POST = 6701;
+    private static int DELETE = 6702;
 
     private String baseAddress;
     private boolean useBaseAddress;
     private Context context;
+    private HandlerHelper handlerHelper;
     private JSONObject data;
     private Handler connectionHandler;
-    private Handler.Callback callBackHandler;
-    private HandlerThread connectionThread;
 
-    public RestfulClient (Context context, Handler.Callback callBackHandler){
+    public RestfulClient (Context context, Looper looper){
         this.context = context;
-        this.callBackHandler = callBackHandler;
-
-        connectionThread = new HandlerThread("RestfulClient");
-        connectionThread.start();
-        connectionHandler = new Handler(connectionThread.getLooper());
+        handlerHelper = new HandlerHelper();
+        connectionHandler = new Handler(looper, handlerHelper);
     }
 
-    public RestfulClient (Context context, Handler.Callback callBackHandler, String baseAddress){
+    public RestfulClient (Context context, Looper looper, String baseAddress){
         this.context = context;
         this.baseAddress = baseAddress;
-        this.callBackHandler = callBackHandler;
-
-        connectionThread = new HandlerThread("RestfulClient");
-        connectionThread.start();
-        connectionHandler = new Handler(connectionThread.getLooper());
+        handlerHelper = new HandlerHelper();
+        connectionHandler = new Handler(looper, handlerHelper);
     }
 
     /**
@@ -99,30 +93,16 @@ public class RestfulClient {
     }
 
     /**
-     * Accessor for the most recent data from a GET call. To be used in the.
-     * Only use this in the Handler.Callback or else the data received may not be correct.
+     * Accessor for the most recent data from a GET call. To be used in the
      * @return The data from the most recent GET call to the current API.
      */
     public JSONObject getData(){
         return this.data;
     }
 
-    private String readStreamToString(InputStream inputStream) throws IOException {
-
-        InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
-        BufferedReader reader = new BufferedReader(inputStreamReader);
-        StringBuilder stringBuilder = new StringBuilder();
-        String line;
-        while((line = reader.readLine()) != null){
-            stringBuilder.append(line);
-        }
-        reader.close();
-
-        return stringBuilder.toString();
-
-    }
-
     private void getRequestHelper(final String address) throws UncheckedIOException{
+
+
 
         connectionHandler.post(() -> {
             try {
@@ -130,13 +110,13 @@ public class RestfulClient {
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod("GET");
 
+                data = new JSONObject(readStreamToString(connection.getInputStream()));
+
                 //Not putting data in the message because it could be bigger than what it allowed
                 //inside of a Bundle.
-                data = new JSONObject(readStreamToString(connection.getInputStream()));
                 Message getMessage = new Message();
                 getMessage.what = GET;
-                callBackHandler.handleMessage(getMessage); //SOMETIMES causes android.view.ViewRootImpl$CalledFromWrongThreadException: Only the original thread that created a view hierarchy can touch its views.
-
+                handlerHelper.handleMessage(getMessage);
 
             } catch (MalformedURLException e) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -156,6 +136,40 @@ public class RestfulClient {
             }
         });
 
+    }
+
+    private String readStreamToString(InputStream inputStream) throws IOException {
+
+        InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
+        BufferedReader reader = new BufferedReader(inputStreamReader);
+        StringBuilder stringBuilder = new StringBuilder();
+        String line;
+        while((line = reader.readLine()) != null){
+            stringBuilder.append(line);
+        }
+        reader.close();
+
+        return stringBuilder.toString();
+
+    }
+
+    protected abstract void onGetFinished();
+
+    private class HandlerHelper implements Handler.Callback {
+
+        @Override
+        public boolean handleMessage(Message msg) {
+            int status = msg.what;
+
+            if(status == GET){
+                Activity currentActivity = (Activity) context;
+                currentActivity.runOnUiThread(RestfulClient.this::onGetFinished);
+                return true;
+            } else {
+                return false;
+            }
+
+        }
     }
 
 }
