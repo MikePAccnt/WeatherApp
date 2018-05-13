@@ -6,7 +6,6 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
-import android.support.annotation.RequiresApi;
 import android.util.Log;
 
 import org.json.JSONException;
@@ -16,36 +15,38 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.UncheckedIOException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 
-
 public abstract class RestfulClient {
 
-    private static int GET = 6700;
-    private static int POST = 6701;
-    private static int DELETE = 6702;
+    private static final int GET = 6700;
+    private static final int POST = 6701;
+    private static final int DELETE = 6702;
+    public static final int GET_FAIL = 6703;
+    public static final int POST_FAIL = 6704;
+    public static final int DELETE_FAIL = 6705;
 
     private String baseAddress;
     private boolean useBaseAddress;
     private Context context;
     private HandlerHelper handlerHelper;
-    private JSONObject data;
     private Handler connectionHandler;
 
     public RestfulClient (Context context, Looper looper){
         this.context = context;
-        handlerHelper = new HandlerHelper();
-        connectionHandler = new Handler(looper, handlerHelper);
+        this.handlerHelper = new HandlerHelper();
+        this.connectionHandler = new Handler(looper, handlerHelper);
     }
 
     public RestfulClient (Context context, Looper looper, String baseAddress){
         this.context = context;
         this.baseAddress = baseAddress;
-        handlerHelper = new HandlerHelper();
-        connectionHandler = new Handler(looper, handlerHelper);
+        this.handlerHelper = new HandlerHelper();
+        this.connectionHandler = new Handler(looper, handlerHelper);
     }
 
     /**
@@ -68,21 +69,22 @@ public abstract class RestfulClient {
         this.useBaseAddress = set;
     }
 
+
     /**
-     * Sends a Get request to a RESTful api and returns the data received from the request.
+     * Sends a Get request to a RESTful api.
      *
-     * @param address The address of the Get request
-     * @throws MalformedURLException Will be thrown if the Get request fails
+     * @param address The address of the Get request. Appended to the base address
+     *                if useBaseAddress is set to true.
+     * @param msg A user message that can be checked in the callback method.
      */
-    @RequiresApi(api = Build.VERSION_CODES.N)
-    public void Get(String address) throws MalformedURLException{
+    public void Get(String address, Message msg) throws MalformedURLException{
 
         try {
             if(useBaseAddress){
                 address = baseAddress + address;
-                getRequestHelper(address);
+                getRequestHelper(address, msg);
             } else {
-                getRequestHelper(address);
+                getRequestHelper(address, msg);
             }
         } catch (UncheckedIOException e) {
             MalformedURLException ex = new MalformedURLException();
@@ -92,17 +94,10 @@ public abstract class RestfulClient {
 
     }
 
-    /**
-     * Accessor for the most recent data from a GET call. To be used in the
-     * @return The data from the most recent GET call to the current API.
-     */
-    public JSONObject getData(){
-        return this.data;
-    }
+    private void getRequestHelper(final String address, final Message userMsg) throws UncheckedIOException{
 
-    private void getRequestHelper(final String address) throws UncheckedIOException{
-
-
+        Message getMessage = new Message();
+        getMessage.what = GET;
 
         connectionHandler.post(() -> {
             try {
@@ -110,13 +105,14 @@ public abstract class RestfulClient {
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod("GET");
 
-                data = new JSONObject(readStreamToString(connection.getInputStream()));
 
-                //Not putting data in the message because it could be bigger than what it allowed
+                JSONObject data = new JSONObject(readStreamToString(connection.getInputStream()));
+
+
+                //Not putting data in the message because it could be bigger than what is allowed
                 //inside of a Bundle.
-                Message getMessage = new Message();
-                getMessage.what = GET;
-                handlerHelper.handleMessage(getMessage);
+
+                handlerHelper.handleMessage(getMessage, userMsg, data);
 
             } catch (MalformedURLException e) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -125,17 +121,124 @@ public abstract class RestfulClient {
                     e.addSuppressed(new MalformedURLException());
                 }
             } catch (IOException e) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    throw new UncheckedIOException(e);
-                } else {
-                    e.addSuppressed(new IOException());
-                }
+                throw new UncheckedIOException(e);
             }
             catch (JSONException e) {
                 Log.e("RestfulClient", e.getMessage());
+                Message errorMsg = new Message();
+                errorMsg.what = GET_FAIL;
+                handlerHelper.handleMessage(getMessage, errorMsg, null);
+
             }
         });
 
+    }
+
+    /**
+     * Sends a Post request to a RESTful api.
+     *
+     * @param address The address of the Post request. Appended to the base address
+     *                if useBaseAddress is set to true.
+     * @param msg A user message that can be checked in the callback method.
+     * @param dataObject Data to send to the Post address
+     */
+    public void Post(String address, Message msg, JSONObject dataObject) throws MalformedURLException{
+
+        try {
+            if(useBaseAddress){
+                address = baseAddress + address;
+                postRequestHelper(address, msg, dataObject);
+            } else {
+                postRequestHelper(address, msg, dataObject);
+            }
+        } catch (UncheckedIOException e) {
+            MalformedURLException ex = new MalformedURLException();
+            ex.setStackTrace(e.getStackTrace());
+            throw ex;
+        }
+
+    }
+
+
+    private void postRequestHelper(final String address, final Message userMsg, JSONObject dataObject){
+        Message postMessage = new Message();
+        postMessage.what = POST;
+
+        connectionHandler.post(() -> {
+            try {
+                URL url = new URL(address);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("POST");
+                connection.setDoOutput(true);
+
+                sendData(connection,dataObject);
+
+                handlerHelper.handleMessage(postMessage,userMsg, new JSONObject(connection.getResponseMessage()));
+
+            } catch (MalformedURLException e){
+                e.printStackTrace();
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            } catch (JSONException e) {
+                e.printStackTrace();
+                Message errorMsg = new Message();
+                errorMsg.what = POST_FAIL;
+                handlerHelper.handleMessage(postMessage, errorMsg, null);
+            }
+        });
+    }
+
+    /**
+     * Sends a Delete request to a RESTful api.
+     *
+     * @param address The address of the Delete request. Appended to the base address
+     *                if useBaseAddress is set to true.
+     * @param msg A user message that can be checked in the callback method.
+     */
+    public void Delete(String address, Message msg, JSONObject dataObject) throws MalformedURLException{
+
+        try {
+            if(useBaseAddress){
+                address = baseAddress + address;
+                deleteRequestHelper(address, msg, dataObject);
+            } else {
+                deleteRequestHelper(address, msg, dataObject);
+            }
+        } catch (UncheckedIOException e) {
+            MalformedURLException ex = new MalformedURLException();
+            ex.setStackTrace(e.getStackTrace());
+            throw ex;
+        }
+
+    }
+
+
+    private void deleteRequestHelper(final String address, final Message userMsg, JSONObject dataObject) {
+        Message deleteMessage = new Message();
+        deleteMessage.what = DELETE;
+
+        connectionHandler.post(() -> {
+            try {
+                URL url = new URL(address);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("DELETE");
+                connection.setDoOutput(true);
+
+                sendData(connection, dataObject);
+
+                handlerHelper.handleMessage(deleteMessage, userMsg, new JSONObject(connection.getResponseMessage()));
+
+            } catch (MalformedURLException e){
+                e.printStackTrace();
+            } catch (IOException e) {
+               throw new UncheckedIOException(e);
+            } catch (JSONException e) {
+                e.printStackTrace();
+                Message errorMsg = new Message();
+                errorMsg.what = DELETE_FAIL;
+                handlerHelper.handleMessage(deleteMessage, errorMsg, null);
+            }
+        });
     }
 
     private String readStreamToString(InputStream inputStream) throws IOException {
@@ -153,23 +256,68 @@ public abstract class RestfulClient {
 
     }
 
-    protected abstract void onGetFinished();
+    private void sendData(HttpURLConnection connection, JSONObject data){
 
-    private class HandlerHelper implements Handler.Callback {
+        try {
+            OutputStreamWriter outputStreamWriter = new OutputStreamWriter(connection.getOutputStream());
+            outputStreamWriter.write(data.toString());
+            outputStreamWriter.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    /**
+     * Callback method when a GET call is finished.
+     * NOTE: THIS RUNS ON THE UI THREAD
+     * @param msg user entered message unless the JSONObject fails to create.
+     *            Check with RestfulClient.GET_FAIL
+     * @param returnedData
+     */
+    protected abstract void onGetFinished(Message msg, JSONObject returnedData);
+
+    /**
+     * Callback method when a POST call is finished.
+     * NOTE: THIS RUNS ON THE UI THREAD
+     * @param msg user entered message unless the JSONObject fails to create.
+     *            Check with RestfulClient.POST_FAIL
+     * @param httpResponseMessage
+     */
+    protected abstract void onPostFinished(Message msg, JSONObject httpResponseMessage);
+
+    /**
+     * Callback method when a DELETE call is finished.
+     * NOTE: THIS RUNS ON THE UI THREAD
+     * @param msg user entered message unless the JSONObject fails to create.
+     *            Check with RestfulClient.DELETE_FAIL
+     * @param httpResponseMessage
+     */
+    protected abstract void onDeleteFinished(Message msg, JSONObject httpResponseMessage);
+
+    private class HandlerHelper implements RestfulCallback {
+
+        @Override
+        public void handleMessage(Message msg, Message userMessage, JSONObject data) {
+            int status = msg.what;
+            Activity currentActivity = (Activity) context;
+            if (status == GET) {
+                currentActivity.runOnUiThread(() -> onGetFinished(userMessage, data));
+            } else if (status == POST){
+                currentActivity.runOnUiThread(() -> onPostFinished(userMessage, data));
+            } else if(status == DELETE){
+                currentActivity.runOnUiThread(() -> onDeleteFinished(userMessage, data));
+            }
+        }
 
         @Override
         public boolean handleMessage(Message msg) {
-            int status = msg.what;
-
-            if(status == GET){
-                Activity currentActivity = (Activity) context;
-                currentActivity.runOnUiThread(RestfulClient.this::onGetFinished);
-                return true;
-            } else {
-                return false;
-            }
-
+            return false;
         }
+    }
+
+    private interface RestfulCallback extends Handler.Callback{
+        public void handleMessage(Message msg1, Message msg2, JSONObject data);
     }
 
 }
