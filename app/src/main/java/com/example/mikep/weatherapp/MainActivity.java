@@ -18,10 +18,10 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
+import android.widget.TextView;
 
 import org.json.JSONObject;
 
-import java.net.MalformedURLException;
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity{
@@ -107,17 +107,12 @@ public class MainActivity extends AppCompatActivity{
             }
         }
         locationManager.removeUpdates(locationListener);
-        try {
-            Message dayMsg = new Message();
-            dayMsg.what = GET_WEATHER_DAY;
-            Message weekMsg = new Message();
-            weekMsg.what = GET_WEATHER_WEEK;
-            client.Get(client.getBaseAddress() + WEATHER_DAY + "lat="+latitude +"&lon="+ longitude + APIKEY, dayMsg);
-            client.Get(client.getBaseAddress() + WEATHER_WEEK + "lat="+latitude +"&lon="+ longitude + APIKEY, weekMsg);
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        }
-
+        Message dayMsg = new Message();
+        dayMsg.what = GET_WEATHER_DAY;
+        Message weekMsg = new Message();
+        weekMsg.what = GET_WEATHER_WEEK;
+        client.Get(client.getBaseAddress() + WEATHER_DAY + "lat="+latitude +"&lon="+ longitude + APIKEY, dayMsg);
+        client.Get(client.getBaseAddress() + WEATHER_WEEK + "lat="+latitude +"&lon="+ longitude + APIKEY, weekMsg);
     }
 
 
@@ -129,11 +124,16 @@ public class MainActivity extends AppCompatActivity{
                 switch (weatherMessage.what){
                     case GET_WEATHER_DAY:
                         info.add(new WeatherDayInfo(returnedData));
+                        TextView cityName = findViewById(R.id.cityText);
+                        cityName.setText(new WeatherDayInfo(returnedData).getCityName());
                         break;
                     case GET_WEATHER_WEEK:
                         WeatherInfoParser temp = new WeatherInfoParser(returnedData);
                         info.addAll(temp.getWeatherWeek());
                         adapter.replaceDataSet(info);
+                        break;
+                    case RestfulClient.GET_FAIL:
+                        Log.d("GET Finished", "GET failed");
                         break;
                 }
 

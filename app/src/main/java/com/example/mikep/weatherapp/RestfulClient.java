@@ -2,7 +2,6 @@ package com.example.mikep.weatherapp;
 
 import android.app.Activity;
 import android.content.Context;
-import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -16,11 +15,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.io.UncheckedIOException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 
+/**
+ *
+ */
 public abstract class RestfulClient {
 
     private static final int GET = 6700;
@@ -77,27 +78,22 @@ public abstract class RestfulClient {
      *                if useBaseAddress is set to true.
      * @param msg A user message that can be checked in the callback method.
      */
-    public void Get(String address, Message msg) throws MalformedURLException{
+    public void Get(String address, Message msg){
 
-        try {
-            if(useBaseAddress){
-                address = baseAddress + address;
-                getRequestHelper(address, msg);
-            } else {
-                getRequestHelper(address, msg);
-            }
-        } catch (UncheckedIOException e) {
-            MalformedURLException ex = new MalformedURLException();
-            ex.setStackTrace(e.getStackTrace());
-            throw ex;
+        if(useBaseAddress){
+            address = baseAddress + address;
+            getRequestHelper(address, msg);
+        } else {
+            getRequestHelper(address, msg);
         }
 
     }
 
-    private void getRequestHelper(final String address, final Message userMsg) throws UncheckedIOException{
+    private void getRequestHelper(final String address, final Message userMsg){
 
         Message getMessage = new Message();
         getMessage.what = GET;
+        boolean sentError;
 
         connectionHandler.post(() -> {
             try {
@@ -111,27 +107,27 @@ public abstract class RestfulClient {
 
                 //Not putting data in the message because it could be bigger than what is allowed
                 //inside of a Bundle.
-
                 handlerHelper.handleMessage(getMessage, userMsg, data);
 
             } catch (MalformedURLException e) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    throw new UncheckedIOException(e);
-                } else {
-                    e.addSuppressed(new MalformedURLException());
-                }
+                Log.e("RestfulClient", e.getMessage());
+                getFail(getMessage);
             } catch (IOException e) {
-                throw new UncheckedIOException(e);
+                Log.e("RestfulClient", e.getMessage());
+                getFail(getMessage);
             }
             catch (JSONException e) {
                 Log.e("RestfulClient", e.getMessage());
-                Message errorMsg = new Message();
-                errorMsg.what = GET_FAIL;
-                handlerHelper.handleMessage(getMessage, errorMsg, null);
-
+                getFail(getMessage);
             }
         });
 
+    }
+
+    private void getFail(Message message){
+        Message errorMsg = new Message();
+        errorMsg.what = GET_FAIL;
+        handlerHelper.handleMessage(message, errorMsg, null);
     }
 
     /**
@@ -142,19 +138,13 @@ public abstract class RestfulClient {
      * @param msg A user message that can be checked in the callback method.
      * @param dataObject Data to send to the Post address
      */
-    public void Post(String address, Message msg, JSONObject dataObject) throws MalformedURLException{
+    public void Post(String address, Message msg, JSONObject dataObject){
 
-        try {
-            if(useBaseAddress){
-                address = baseAddress + address;
-                postRequestHelper(address, msg, dataObject);
-            } else {
-                postRequestHelper(address, msg, dataObject);
-            }
-        } catch (UncheckedIOException e) {
-            MalformedURLException ex = new MalformedURLException();
-            ex.setStackTrace(e.getStackTrace());
-            throw ex;
+        if(useBaseAddress){
+            address = baseAddress + address;
+            postRequestHelper(address, msg, dataObject);
+        } else {
+            postRequestHelper(address, msg, dataObject);
         }
 
     }
@@ -176,16 +166,22 @@ public abstract class RestfulClient {
                 handlerHelper.handleMessage(postMessage,userMsg, new JSONObject(connection.getResponseMessage()));
 
             } catch (MalformedURLException e){
-                e.printStackTrace();
+                Log.e("RestfulClient", e.getMessage());
+                postFail(postMessage);
             } catch (IOException e) {
-                throw new UncheckedIOException(e);
+                Log.e("RestfulClient", e.getMessage());
+                postFail(postMessage);
             } catch (JSONException e) {
-                e.printStackTrace();
-                Message errorMsg = new Message();
-                errorMsg.what = POST_FAIL;
-                handlerHelper.handleMessage(postMessage, errorMsg, null);
+                Log.e("RestfulClient", e.getMessage());
+                postFail(postMessage);
             }
         });
+    }
+
+    private void postFail(Message message){
+        Message errorMsg = new Message();
+        errorMsg.what = POST_FAIL;
+        handlerHelper.handleMessage(message, errorMsg, null);
     }
 
     /**
@@ -195,19 +191,13 @@ public abstract class RestfulClient {
      *                if useBaseAddress is set to true.
      * @param msg A user message that can be checked in the callback method.
      */
-    public void Delete(String address, Message msg, JSONObject dataObject) throws MalformedURLException{
+    public void Delete(String address, Message msg, JSONObject dataObject){
 
-        try {
-            if(useBaseAddress){
-                address = baseAddress + address;
-                deleteRequestHelper(address, msg, dataObject);
-            } else {
-                deleteRequestHelper(address, msg, dataObject);
-            }
-        } catch (UncheckedIOException e) {
-            MalformedURLException ex = new MalformedURLException();
-            ex.setStackTrace(e.getStackTrace());
-            throw ex;
+        if(useBaseAddress){
+            address = baseAddress + address;
+            deleteRequestHelper(address, msg, dataObject);
+        } else {
+            deleteRequestHelper(address, msg, dataObject);
         }
 
     }
@@ -229,16 +219,22 @@ public abstract class RestfulClient {
                 handlerHelper.handleMessage(deleteMessage, userMsg, new JSONObject(connection.getResponseMessage()));
 
             } catch (MalformedURLException e){
-                e.printStackTrace();
+                Log.e("RestfulClient", e.getMessage());
+                deleteFail(deleteMessage);
             } catch (IOException e) {
-               throw new UncheckedIOException(e);
+                Log.e("RestfulClient", e.getMessage());
+                deleteFail(deleteMessage);
             } catch (JSONException e) {
-                e.printStackTrace();
-                Message errorMsg = new Message();
-                errorMsg.what = DELETE_FAIL;
-                handlerHelper.handleMessage(deleteMessage, errorMsg, null);
+                Log.e("RestfulClient", e.getMessage());
+                deleteFail(deleteMessage);
             }
         });
+    }
+
+    private void deleteFail(Message message){
+        Message errorMsg = new Message();
+        errorMsg.what = DELETE_FAIL;
+        handlerHelper.handleMessage(message, errorMsg, null);
     }
 
     private String readStreamToString(InputStream inputStream) throws IOException {

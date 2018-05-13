@@ -14,6 +14,7 @@ import java.util.Date;
 public class WeatherDayInfo implements Parcelable {
 
     private JSONObject dayInfo;
+    private String cityName;
     private String weatherDescription;
     private String weatherId;
     private double temperature;
@@ -36,6 +37,8 @@ public class WeatherDayInfo implements Parcelable {
         this.dayInfo = dayInfo;
         fillData();
     }
+
+    public String getCityName(){ return cityName; }
 
     public String getWeatherDescription() {
         return weatherDescription;
@@ -117,6 +120,7 @@ public class WeatherDayInfo implements Parcelable {
 
         try {
             time = dayInfo.getLong("dt");
+            cityName = dayInfo.getString("name");
         } catch (JSONException e) {
             e.printStackTrace();
         }
