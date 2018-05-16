@@ -5,13 +5,14 @@
     android:layout_height="match_parent">
 
     <android.support.v7.widget.CardView
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_margin="25dp"
-        app:cardBackgroundColor="#545454"
-        app:cardCornerRadius="15dp"
-        app:cardElevation="24dp"
-        app:contentPadding="10dp">
+        android:elevation="0dp"
+        android:fadingEdge="none"
+        app:cardBackgroundColor="#32000000"
+        app:cardElevation="0dp"
+        app:cardUseCompatPadding="true">
 
         <android.support.constraint.ConstraintLayout
             android:layout_width="match_parent"
@@ -49,7 +50,7 @@
                 app:layout_constraintHorizontal_bias="0.0"
                 app:layout_constraintStart_toEndOf="@+id/tempText2"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintVertical_bias="0.58000004" />
+                app:layout_constraintVertical_bias="0.573" />
 
             <TextView
                 android:id="@+id/weatherText2"

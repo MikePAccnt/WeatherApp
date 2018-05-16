@@ -184,7 +184,7 @@ public class WeatherDayInfo implements Parcelable {
     private String dateToString(Date date){
         Calendar calendar = Calendar.getInstance();
         TimeZone timeZone = calendar.getTimeZone();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd hh:mm a");
+        SimpleDateFormat dateFormat = new SimpleDateFormat("MMMM dd h:mm a");
         dateFormat.setTimeZone(timeZone);
 
         return dateFormat.format(date);
