@@ -9,8 +9,10 @@ import android.widget.TextView;
 
 import java.util.ArrayList;
 
-public class WeatherViewAdapter extends RecyclerView.Adapter<WeatherViewAdapter.WeatherViewHolder> {
+import butterknife.BindView;
+import butterknife.ButterKnife;
 
+public class WeatherViewAdapter extends RecyclerView.Adapter<WeatherViewAdapter.WeatherViewHolder> {
 
     private ArrayList<WeatherDayInfo> data;
 
@@ -29,6 +31,7 @@ public class WeatherViewAdapter extends RecyclerView.Adapter<WeatherViewAdapter.
     @Override
     public void onBindViewHolder(@NonNull WeatherViewHolder holder, int position) {
         //TextView cityName = holder.cityName;
+
         TextView weatherText = holder.weatherText;
         TextView tempText = holder.tempText;
         TextView dateText = holder.dateText;
@@ -55,17 +58,14 @@ public class WeatherViewAdapter extends RecyclerView.Adapter<WeatherViewAdapter.
     public static class WeatherViewHolder extends RecyclerView.ViewHolder {
 
         //TextView cityName;
-        TextView weatherText;
-        TextView tempText;
-        TextView dateText;
-        TextView dayText;
+        @BindView(R.id.weatherText2) TextView weatherText;
+        @BindView(R.id.tempText2) TextView tempText;
+        @BindView(R.id.dateText2) TextView dateText;
+        @BindView(R.id.dayText2) TextView dayText;
 
         public WeatherViewHolder(View itemView) {
             super(itemView);
-            this.weatherText = itemView.findViewById(R.id.weatherText2);
-            this.tempText = itemView.findViewById(R.id.tempText2);
-            this.dateText = itemView.findViewById(R.id.dateText2);
-            this.dayText = itemView.findViewById(R.id.dayText2);
+            ButterKnife.bind(this,itemView);
         }
     }
 

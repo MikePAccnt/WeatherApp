@@ -38,6 +38,10 @@ public class WeatherDayInfo implements Parcelable {
         fillData();
     }
 
+    public JSONObject getDayInfo() {
+        return dayInfo;
+    }
+
     public String getCityName(){ return cityName; }
 
     public String getWeatherDescription() {
