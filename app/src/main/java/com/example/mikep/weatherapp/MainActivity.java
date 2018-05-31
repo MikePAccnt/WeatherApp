@@ -9,6 +9,8 @@ import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.widget.TextView;
 
+import com.example.mikep.weatherapp.restfulclient.RestfulClient;
+
 import org.json.JSONObject;
 
 import java.util.ArrayList;
@@ -28,7 +30,6 @@ public class MainActivity extends AppCompatActivity{
     private HandlerThread connectionHandlerThread;
     private double lat;
     private double lon;
-
 
     @BindView(R.id.recyclerView) RecyclerView recyclerView;
     private RecyclerView.LayoutManager layoutManager;
